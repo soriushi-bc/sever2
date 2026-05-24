@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+		<title>Chat</title>
+
+        <link rel="stylesheet" href="#">
+        <style type="text/css">    
+            .iframe-game {
+                width: 78%;
+                height: 750px;
+                border: none;
+                
+                position: absolute;
+                top: 5px;
+                right: 20px;
+            }
+
+        </style>
+    </head>
+
+    <body>
+
+        <input id="nameInput" placeholder="輸入名字">
+
+        <button onclick="join()">Join</button>
+
+        <div id="myName">You : </div>
+        <div id="myRole">你的角色：</div>
+        <button onclick="dead()">Dead</button>
+
+        <div>──────────</div>
+
+        <div>Player : </div>
+        <div id="users"></div>
+
+        <div>──────────</div>
+
+        <div id="userCount">numbers = </div>
+
+        <div>n=4  => 1K,1Q,1J,1A</div>
+        <div>n=5  => 1K,1Q,2J,1A</div>
+        <div>n=6  => 1K,2Q,2J,1A/1K,1Q,2J,1A,1j</div>
+        <div>n=7  => 1K,2Q,3J,1A/1K,2Q,2J,1A,1j</div>
+        <div>n=8  => 1K,2Q,3J,2A/1K,2Q,3J,1A,1j</div>
+        <div>n=9  => 1K,3Q,3J,2A/1K,2Q,3J,2A,1j</div>
+        <div>n=10=>1K,3Q,3J,3A/1K,2Q,3J,2A,2j</div>
+
+        <button onclick="start()">Start</button>
+        <input type="checkbox" id="useJoker"> 是否加入小丑
+
+        
+
+        <script>
+            const ws = new WebSocket('wss://holy-violet-0293.scp001-bc.workers.dev');
+            
+            let myName = '';
+
+            const roleMap = {
+                'none': '不透露',
+                'K': '國王',
+                'Q': '忠臣',
+                'J': '反賊',
+                'A': '內奸',
+                'joker': '小丑'
+            };
+
+            function join() {
+
+                const name = document.getElementById('nameInput').value;
+
+                if (!name) return;
+    
+                myName = name; 
+    
+                document.getElementById('myName').innerHTML = 
+                `<div>You:${myName}
+                    <select class="role-select" id="claim_${myName}">
+                        <option value="none">不透露</option>
+                        <option value="K">國王</option>
+                        <option value="Q">忠臣</option>
+                        <option value="J">反賊</option>
+                        <option value="A">內奸</option>
+                        <option value="joker">小丑</option>
+                    </select>
+                </div>`; 
+
+                ws.send(JSON.stringify({
+                    type: 'join',
+                    name: name
+                }));
+            }
+
+            ws.onmessage = event => {
+                console.log('收到：', event.data);
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'error') {
+                    alert(data.message);
+                }
+
+                if (data.type === 'users') {
+                    const saved = {};
+                    document.querySelectorAll('.role-select').forEach(sel => {
+                        saved[sel.id] = sel.value;
+                    });
+
+                    document.getElementById('userCount').textContent = `numbers = ${data.users.length}`;
+
+                    document.getElementById('users').innerHTML = data.users.map((user, i) => `
+                        <div>
+                            ${user.name} ${user.dead ? '<span>(dead)</span>' : ''} 
+                            <span>→ ${roleMap[user.role] || '不透露'}</span>
+                        </div>
+                    `).join('');
+
+                    document.querySelectorAll('.role-select').forEach(sel => {
+                        if (saved[sel.id]) sel.value = saved[sel.id];
+                    });
+                }
+
+                if (data.type === 'your_role') {
+                    console.log('收到：', data);
+                    document.getElementById('myRole').textContent = `你的角色：${roleMap[data.role]}`;
+                }
+
+                if (data.type === 'gameover') {
+                    alert(data.message);
+                }
+
+                if (data.type === 'info') {
+                    alert(data.message);
+                }
+
+                if (data.type === 'new_king') {
+                    alert(data.message);
+                }
+
+                if (data.type === 'choose_heir') {
+                    const heir = prompt('👑 國王駕崩！輸入繼承人的名字：');
+                    ws.send(JSON.stringify({
+                        type: 'heir',
+                        heirName: heir
+                    }));
+                }
+
+            };
+
+            document.getElementById('users').addEventListener('change', e => {
+                if (e.target.classList.contains('role-select')) {
+                    ws.send(JSON.stringify({
+                        type: 'claim',
+                        name: myName,
+                        role: e.target.value
+                    }));
+                }
+            });
+
+            document.getElementById('myName').addEventListener('change', e => {
+                if (e.target.classList.contains('role-select')) {
+                    ws.send(JSON.stringify({
+                        type: 'claim',
+                        name: myName,
+                        role: e.target.value
+                    }));
+                }
+            });
+
+            function start() {
+                const useJoker = document.getElementById('useJoker').checked;
+                ws.send(JSON.stringify({
+                    type: 'start',
+                    useJoker: useJoker
+                }));
+            }
+
+            function dead() {
+                ws.send(JSON.stringify({
+                    type: 'dead',
+                    name: myName
+                }));
+            }
+                        
+
+        </script>
+
+        <iframe class="iframe-game" src="https://godfield.net/?lang=zh-hant"></iframe>
+
+    </body>
+</html>
