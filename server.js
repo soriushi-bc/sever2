@@ -87,6 +87,7 @@ server.on('connection', ws => {
                 }
             });
 
+            console.log('國王是：', actualKingName);
             broadcast({ type: 'king_is', kingName: actualKingName });
         }
 
