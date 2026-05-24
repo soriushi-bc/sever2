@@ -137,9 +137,7 @@ server.on('connection', ws => {
                     if (traitorKillCount >= 3) {
                         broadcast({ type: 'gameover', message: '🗡️ 內奸已成功刺殺三名目標，【內奸獲勝】！' });
                         return;
-                    } else {
-                        broadcast({ type: 'info', message: `目前內奸擊殺進度：${traitorKillCount}/3` });
-                    }
+                    } 
                 }
             }
 
