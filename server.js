@@ -50,6 +50,8 @@ server.on('connection', ws => {
 
             claims.set(data.name, 'none');
 
+            isDead.set(data.name, false);
+
             broadcastUsers();
         }
         
