@@ -86,8 +86,7 @@ server.on('connection', ws => {
                     }));
                 }
             });
-
-            console.log('國王是：', actualKingName);
+            
             broadcast({ type: 'king_is', kingName: actualKingName });
         }
 
@@ -107,12 +106,14 @@ server.on('connection', ws => {
                 return;
             }
 
+            console.log('死亡：', deadName, '目前國王：', actualKingName);
+
             // 國王陣亡
             if (deadName === actualKingName) {
                 const aliveList = [...users.values()].filter(n => !isDead.get(n));
                 broadcast({ 
                     type: 'choose_heir', 
-                    alivePlayers: aliveList  // ← 送名單過去
+                    alivePlayers: aliveList
                 });
                 return;
             }
@@ -129,42 +130,10 @@ server.on('connection', ws => {
                 broadcast({ type: 'gameover', message: `繼承人 ${heirName} 是【內奸】！🗡️ 內奸竊國成功，【內奸獲勝】！` });
             } else {
                 actualKingName = heirName;
+                console.log('新國王為：', actualKingName);
                 broadcast({ type: 'new_king', message: `👑 ${heirName} 登基成為新任國王！` });
+                broadcast({ type: 'king_is', kingName: heirName });
             }
-        }
-
-        function checkOtherConditions(deadName) {
-            const deadRole = roles.get(deadName);
-            const allNames = [...users.values()];
-
-            // 內奸判定
-            if (['K','Q','J'].includes(deadRole)) {
-                const hasAliveTraitor = allNames.some(n => roles.get(n) === 'A' && !isDead.get(n));
-                if (hasAliveTraitor) {
-                    traitorKillCount++;
-                    if (traitorKillCount >= 3) {
-                        broadcast({ type: 'gameover', message: '🗡️ 內奸已成功刺殺三名目標，【內奸獲勝】！' });
-                        return;
-                    } else {
-                        broadcast({ type: 'info', message: `目前內奸擊殺進度：${traitorKillCount}/3` });
-                    }
-                }
-            }
-
-            // 反賊全滅判定
-            const rebels = allNames.filter(n => roles.get(n) === 'J');
-            const deadRebels = rebels.filter(n => isDead.get(n));
-            if (rebels.length > 0 && rebels.length === deadRebels.length) {
-                broadcast({ type: 'gameover', message: '🛡️ 所有反賊皆已伏誅，【國王與忠臣獲勝】！' });
-            }
-        }
-
-        function broadcast(obj) {
-            server.clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify(obj));
-                }
-            });
         }
     
     });
@@ -178,6 +147,40 @@ server.on('connection', ws => {
         broadcastUsers();
     });
 });
+
+function checkOtherConditions(deadName) {
+    const deadRole = roles.get(deadName);
+    const allNames = [...users.values()];
+
+    // 內奸判定
+    if (['K','Q','J'].includes(deadRole)) {
+        const hasAliveTraitor = allNames.some(n => roles.get(n) === 'A' && !isDead.get(n));
+        if (hasAliveTraitor) {
+            traitorKillCount++;
+            if (traitorKillCount >= 3) {
+                broadcast({ type: 'gameover', message: '🗡️ 內奸已成功刺殺三名目標，【內奸獲勝】！' });
+                return;
+            } else {
+                broadcast({ type: 'info', message: `目前內奸擊殺進度：${traitorKillCount}/3` });
+            }
+        }
+    }
+
+    // 反賊全滅判定
+    const rebels = allNames.filter(n => roles.get(n) === 'J');
+    const deadRebels = rebels.filter(n => isDead.get(n));
+    if (rebels.length > 0 && rebels.length === deadRebels.length) {
+        broadcast({ type: 'gameover', message: '🛡️ 所有反賊皆已伏誅，【國王與忠臣獲勝】！' });
+    }
+}
+
+function broadcast(obj) {
+    server.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(obj));
+        }
+    });
+}
 
 function broadcastUsers() {
 
